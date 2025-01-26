@@ -1,0 +1,31 @@
+{
+  "query": {
+    "bool": {
+      "filter": {
+        "term": {
+          "status": 1
+        }
+      },
+      "must_not": {
+        "range": {
+          "price": {
+            "gte": 70
+          }
+        }
+      },
+      "must": {
+        "match": {
+          "title": "java"
+        }
+      },
+      "should": [
+        {
+          "match": {
+            "description": "虚拟机"
+          }
+        }
+      ],
+      "minimum_should_match": 1
+    }
+  }
+}

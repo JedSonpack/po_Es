@@ -1,0 +1,32 @@
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match": {
+            "title": "yupi"
+          }
+        },
+        {
+          "match": {
+            "content": "知识星球"
+          }
+        }
+      ],
+      "filter": [
+        {
+          "term": {
+            "status": "published"
+          }
+        },
+        {
+          "range": {
+            "publish_data": {
+              "gte": "2015-01-01"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

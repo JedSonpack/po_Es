@@ -28,9 +28,7 @@ import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.Currency;
 import java.util.HashMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.FutureTask;
+import java.util.concurrent.*;
 import java.util.function.Supplier;
 
 /**
@@ -61,42 +59,47 @@ public class SearchFacade {
         int pageSize = searchQueryRequest.getPageSize();
         if (searchTypeEnum == null) {
             String finalSearchText = searchText;
+            // 采用单线程查询
+//            Page<Picture> picturePage = pictureDataSource.doSearch(searchText, current, pageSize);
+//            Page<PostVO> postVOPage = postDataSource.doSearch(searchText, current, pageSize);
+//            Page<UserVO> userVOPage = userDataSource.doSearch(searchText, current, pageSize);
+//            searchVO.setPictureList(picturePage.getRecords());
+//            searchVO.setUserList(userVOPage.getRecords());
+//            searchVO.setPostList(postVOPage.getRecords());
+//             创建一个自定义线程池
+            ExecutorService executorService = Executors.newFixedThreadPool(4);  // 假设你希望使用4个线程
+
             CompletableFuture<Page<Picture>> pictureTask = CompletableFuture.supplyAsync(() -> {
-                // 存在ThreadLocal中
                 RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
                 try {
                     return pictureDataSource.doSearch(finalSearchText, current, pageSize);
                 } finally {
-                    // 清除
                     RequestContextHolder.resetRequestAttributes();
                 }
-            });
+            }, executorService);
+
             CompletableFuture<Page<PostVO>> postTask = CompletableFuture.supplyAsync(() -> {
                 try {
                     PostQueryRequest postQueryRequest = new PostQueryRequest();
                     RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
                     postQueryRequest.setSearchText(finalSearchText);
-                    Page<PostVO> postVOPage = postDataSource.doSearch(finalSearchText, current, pageSize);
-                    return postVOPage;
+                    return postDataSource.doSearch(finalSearchText, current, pageSize);
                 } finally {
                     RequestContextHolder.resetRequestAttributes();
                 }
-            });
+            }, executorService);
+
             CompletableFuture<Page<UserVO>> userTask = CompletableFuture.supplyAsync(() -> {
                 try {
                     UserQueryRequest userQueryRequest = new UserQueryRequest();
                     userQueryRequest.setUserName(finalSearchText);
                     RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
-                    Page<UserVO> userVOPage = userDataSource.doSearch(finalSearchText, current, pageSize);
-                    return userVOPage;
+                    return userDataSource.doSearch(finalSearchText, current, pageSize);
                 } finally {
                     RequestContextHolder.resetRequestAttributes();
                 }
-            });
-
-
+            }, executorService);
             CompletableFuture.allOf(pictureTask, postTask, userTask).join();
-
             try {
                 Page<Picture> picturePage = pictureTask.get();
                 Page<UserVO> userVOPage = userTask.get();
@@ -107,6 +110,7 @@ public class SearchFacade {
             } catch (Exception e) {
                 throw new BusinessException(ErrorCode.SYSTEM_ERROR, "查询异常！！！");
             }
+            executorService.shutdown();
         } else { // 查询部分内容
             // 注册器模式：通过提前通过一个Map或者其他类型存储好后面需要调用的对象
             DataSource<?> dataSource = dataSourceRegister.getDataSourceByType(type);

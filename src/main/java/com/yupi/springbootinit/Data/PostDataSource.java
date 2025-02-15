@@ -25,11 +25,16 @@ public class PostDataSource implements DataSource<PostVO> {
         postQueryRequest.setSearchText(searchText);
         postQueryRequest.setCurrent((int) pageIndex);
         postQueryRequest.setPageSize((int) pageSize);
-
         ServletRequestAttributes servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
         assert servletRequestAttributes != null;
         HttpServletRequest request = servletRequestAttributes.getRequest();
+        // 从ES中找
         Page<Post> postPage = postService.searchFromEs(postQueryRequest);
-        return postService.getPostVOPage(postPage,request);
+
+//        long current = postQueryRequest.getCurrent();
+//        long size = postQueryRequest.getPageSize();
+//        Page<Post> postPage = postService.page(new Page<>(current, size),
+//                postService.getQueryWrapper(postQueryRequest));
+        return postService.getPostVOPage(postPage, request);
     }
 }
